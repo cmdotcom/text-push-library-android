@@ -2,7 +2,6 @@ package com.cm.cmpush.helper
 
 import android.content.Context
 import android.util.Log
-import com.cm.cmpush.BuildConfig
 import com.cm.cmpush.CMPush
 import java.io.BufferedReader
 import java.io.InputStream

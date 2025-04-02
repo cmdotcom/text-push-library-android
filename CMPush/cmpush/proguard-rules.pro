@@ -23,10 +23,10 @@
 -keep public class com.cm.cmpush.CMPush {
     *;
 }
--keep public class com.cm.cmpush.objects.CMPushError {
+-keep class com.cm.cmpush.objects.CMPushError {
     *;
 }
--keep class com.cm.cmpush.SharedPreferenceUtils {
+-keep class com.cm.cmpush.helper.SharedPreferenceUtils {
     *;
 }
 -keepparameternames

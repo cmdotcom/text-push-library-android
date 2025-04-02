@@ -38,7 +38,8 @@ internal class SharedPreferenceUtils(private val sharedPreferences: SharedPrefer
         else null
     }
 
-    fun storeAccountId(accountId: String) = storeStringSynchronous(PreferenceKey.ACCOUNT_ID, accountId)
+    fun storeAccountId(accountId: String) =
+        storeStringSynchronous(PreferenceKey.ACCOUNT_ID, accountId)
     // </editor-fold>
 
     // <editor-fold desc="Installation ID">
@@ -49,7 +50,8 @@ internal class SharedPreferenceUtils(private val sharedPreferences: SharedPrefer
         else return null
     }
 
-    fun storeInstallationId(installationId: String) = storeStringSynchronous(PreferenceKey.INSTALLATION_ID, installationId)
+    fun storeInstallationId(installationId: String) =
+        storeStringSynchronous(PreferenceKey.INSTALLATION_ID, installationId)
 
     fun deleteInstallationId() = delete(PreferenceKey.INSTALLATION_ID)
     // </editor-fold>
@@ -75,7 +77,8 @@ internal class SharedPreferenceUtils(private val sharedPreferences: SharedPrefer
         else null
     }
 
-    fun storeChannelId(channelId: String) = storeStringSynchronous(PreferenceKey.CHANNEL_ID, channelId)
+    fun storeChannelId(channelId: String) =
+        storeStringSynchronous(PreferenceKey.CHANNEL_ID, channelId)
     // </editor-fold>
 
     // <editor-fold desc="Notification ID">
@@ -86,7 +89,8 @@ internal class SharedPreferenceUtils(private val sharedPreferences: SharedPrefer
         else null
     }
 
-    fun storeNotificationId(notificationId: Int) = storeIntSynchronous(PreferenceKey.NOTIFICATION_ID, notificationId)
+    fun storeNotificationId(notificationId: Int) =
+        storeIntSynchronous(PreferenceKey.NOTIFICATION_ID, notificationId)
 
     fun deleteNotificationId() = delete(PreferenceKey.NOTIFICATION_ID)
     // </editor-fold>
@@ -99,7 +103,8 @@ internal class SharedPreferenceUtils(private val sharedPreferences: SharedPrefer
         else null
     }
 
-    fun storeSuggestionId(suggestionId: Int) = storeIntSynchronous(PreferenceKey.SUGGESTION_ID, suggestionId)
+    fun storeSuggestionId(suggestionId: Int) =
+        storeIntSynchronous(PreferenceKey.SUGGESTION_ID, suggestionId)
 
     fun deleteSuggestionId() = delete(PreferenceKey.SUGGESTION_ID)
     // </editor-fold>
@@ -116,7 +121,8 @@ internal class SharedPreferenceUtils(private val sharedPreferences: SharedPrefer
         return requireString(PreferenceKey.PUSH_TOKEN_ID)
     }
 
-    fun storePushToken(pushToken: String) = storeStringSynchronous(PreferenceKey.PUSH_TOKEN_ID, pushToken)
+    fun storePushToken(pushToken: String) =
+        storeStringSynchronous(PreferenceKey.PUSH_TOKEN_ID, pushToken)
 
     fun deletePushToken() = delete(PreferenceKey.PUSH_TOKEN_ID)
     // </editor-fold>
@@ -138,11 +144,13 @@ internal class SharedPreferenceUtils(private val sharedPreferences: SharedPrefer
     fun hasMessageHistory() = contains(PreferenceKey.MESSAGE_HISTORY_ID)
 
     fun getMessageHistory(): JSONArray {
-        return if (hasMessageHistory()) tryStringToJSONArray(requireString(PreferenceKey.MESSAGE_HISTORY_ID)) ?: JSONArray()
+        return if (hasMessageHistory()) tryStringToJSONArray(requireString(PreferenceKey.MESSAGE_HISTORY_ID))
+            ?: JSONArray()
         else JSONArray()
     }
 
-    fun storeMessageHistory(history: JSONArray) = storeStringSynchronous(PreferenceKey.MESSAGE_HISTORY_ID, history.toString())
+    fun storeMessageHistory(history: JSONArray) =
+        storeStringSynchronous(PreferenceKey.MESSAGE_HISTORY_ID, history.toString())
 
     fun deleteMessageHistory() = delete(PreferenceKey.MESSAGE_HISTORY_ID)
     // </editor-fold>
@@ -151,11 +159,16 @@ internal class SharedPreferenceUtils(private val sharedPreferences: SharedPrefer
     fun hasPollSettings() = contains(PreferenceKey.POLL_SETTINGS)
 
     fun getPollSettings(): CMPollSettings? {
-        return if (hasPollSettings()) CMPollSettings.fromJSONObject(tryStringToJSONObject(requireString(PreferenceKey.POLL_SETTINGS)))
+        return if (hasPollSettings()) CMPollSettings.fromJSONObject(
+            tryStringToJSONObject(
+                requireString(PreferenceKey.POLL_SETTINGS)
+            )
+        )
         else null
     }
 
-    fun storePollSettings(pollSettings: CMPollSettings) = storeStringSynchronous(PreferenceKey.POLL_SETTINGS, pollSettings.toJSONObject().toString())
+    fun storePollSettings(pollSettings: CMPollSettings) =
+        storeStringSynchronous(PreferenceKey.POLL_SETTINGS, pollSettings.toJSONObject().toString())
 
     fun deletePollSettings() = delete(PreferenceKey.POLL_SETTINGS)
     // </editor-fold>

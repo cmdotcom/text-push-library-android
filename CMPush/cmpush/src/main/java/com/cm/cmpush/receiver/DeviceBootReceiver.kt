@@ -12,7 +12,10 @@ internal class DeviceBootReceiver : BroadcastReceiver() {
         Log.d(TAG, "Device booted up!")
 
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) {
-            Log.e(TAG, "Action that started ${DeviceBootReceiver::class.simpleName} is not ACTION_BOOT_COMPLETED!")
+            Log.e(
+                TAG,
+                "Action that started ${DeviceBootReceiver::class.simpleName} is not ACTION_BOOT_COMPLETED!"
+            )
             return
         }
 

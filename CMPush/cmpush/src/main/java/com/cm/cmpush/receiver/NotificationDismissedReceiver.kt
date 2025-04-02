@@ -12,9 +12,13 @@ class NotificationDismissedReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
         context?.let { context ->
             intent?.extras?.let { extras ->
-                extras.getInt(CMPush.KEY_NOTIFICATION_ID).let { notificationId ->
+                extras.getInt(CMPush.KEY_NOTIFICATION_ID).let {
                     extras.getString(CMPush.KEY_MESSAGE_ID)?.let { messageId ->
-                        CMPush.reportStatus(context, CMPushStatus(CMPushEvent(CMPushEventType.MessageDismissed, messageId)), null)
+                        CMPush.reportStatus(
+                            context,
+                            CMPushStatus(CMPushEvent(CMPushEventType.MessageDismissed, messageId)),
+                            null
+                        )
                     }
                 }
             }

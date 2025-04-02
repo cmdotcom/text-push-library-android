@@ -10,6 +10,27 @@ The CM platform will look up the corresponding push token for the telephone numb
 
 # RELEASE NOTES
 
+## 2.1.0
+
+**Added**
+- Default action to notifications.
+- Reply action for notifications.
+
+**Modified**
+- Status report sent to CM when the user opens a notification.
+
+**Fixed**
+- Notification authorization in `CMPush.updateToken` call to CM.
+- Issue with intent not resetting.
+
+**Removed**
+- Deprecated functions from version 1.
+
+**Deprecated**
+- SMS verification (OTP) flow functions.
+
+---
+
 ## 2.0.0
 
 ##### Breaking

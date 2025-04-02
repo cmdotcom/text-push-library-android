@@ -3,12 +3,20 @@ package com.cm.cmpush.objects
 import com.cm.cmpush.helper.JSONHelper.getStringOrNull
 import org.json.JSONObject
 
+
+fun JSONObject.optStringCaseInsensitive(key: String): String {
+    // Find the actual key matching the input key case-insensitively
+    val actualKey = keys().asSequence().firstOrNull { it.equals(key, ignoreCase = true) }
+    return actualKey?.let { optString(it) } ?: ""
+}
+
 internal class CMData(
     val title: String?,
     val body: String,
     val messageId: String,
     val media: Media?,
-    val suggestions: Array<Suggestion>
+    val suggestions: Array<Suggestion>,
+    val defaultAction: DefaultAction?,
 ) {
     class Media(
         val mediaName: String,
@@ -21,14 +29,14 @@ internal class CMData(
         val label: String,
         val url: String,
         val page: String,
-        val postbackData: String
+        val postbackdata: String
     ) {
         fun toJSONObject(): JSONObject = JSONObject().apply {
             put("action", action.name)
             put("label", label)
             put("url", url)
             put("page", page)
-            put("postbackData", postbackData)
+            put("postbackdata", postbackdata)
         }
 
         companion object {
@@ -37,7 +45,44 @@ internal class CMData(
                 label = jsonObject.optString("label"),
                 url = jsonObject.optString("url"),
                 page = jsonObject.optString("page"),
-                postbackData = jsonObject.optString("postbackData")
+                postbackdata = jsonObject.optStringCaseInsensitive("postbackdata")
+            )
+        }
+
+        enum class Action {
+            OpenUrl, Reply, OpenAppPage, Unknown;
+
+            companion object {
+                fun translateValue(value: String): Action {
+                    return try {
+                        valueOf(value)
+                    } catch (e: IllegalArgumentException) {
+                        Unknown
+                    }
+                }
+            }
+        }
+    }
+
+    class DefaultAction(
+        val action: Action,
+        val url: String,
+        val page: String,
+        val postbackdata: String
+    ) {
+        fun toJSONObject(): JSONObject = JSONObject().apply {
+            put("action", action.name)
+            put("url", url)
+            put("page", page)
+            put("postbackdata", postbackdata)
+        }
+
+        companion object {
+            fun fromJSONObject(jsonObject: JSONObject) = DefaultAction(
+                action = Action.translateValue(jsonObject.optString("action")),
+                url = jsonObject.optString("url"),
+                page = jsonObject.optString("page"),
+                postbackdata = jsonObject.optStringCaseInsensitive("postbackdata")
             )
         }
 
@@ -68,7 +113,7 @@ internal class CMData(
                     Media(
                         mediaName = it.optString("mediaName"),
                         mediaUri = it.optString("mediaUri"),
-                        mimeType = it.optString("mimeType")
+                        mimeType = it.optString("mimeType"),
                     )
                 },
                 suggestions = jsonObject.optJSONArray("suggestions")?.let { suggestions ->
@@ -77,7 +122,10 @@ internal class CMData(
                             Suggestion.fromJSONObject(suggestion)
                         }
                     }
-                } ?: arrayOf()
+                } ?: arrayOf(),
+                defaultAction = jsonObject.optJSONObject("defaultAction")?.let {
+                    DefaultAction.fromJSONObject(it)
+                }
             )
         }
     }

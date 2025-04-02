@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.Handler
@@ -55,6 +56,13 @@ internal object NotificationHelper {
             context,
             notificationId,
             Intent(context, NotificationInteractionReceiver::class.java).apply {
+                if (cmData.defaultAction != null) {
+                    action = cmData.defaultAction.action.name
+                    putExtra(
+                        CMPush.KEY_DEFAULT_ACTION,
+                        cmData.defaultAction.toJSONObject().toString()
+                    )
+                }
                 putExtra(CMPush.KEY_NOTIFICATION_ID, notificationId)
                 putExtra(CMPush.KEY_MESSAGE_ID, cmData.messageId)
                 //flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -96,8 +104,8 @@ internal object NotificationHelper {
         // Handle the rest async for if images needs to be downloaded
         executor.execute {
             cmData.media?.let { media ->
-                // Only allow jpeg / png images
-                if (media.mimeType != "image/jpeg" && media.mimeType != "image/png") {
+                // Only allow jpeg / png images, potentially support webp if iOS easily supports it
+                if (media.mimeType != "image/jpeg" && media.mimeType != "image/png") {  // && media.mimeType != "image/webp"
                     Log.e(TAG, "Media with mimeType '${media.mimeType}' not supported.")
                     return@let null
                 }
@@ -113,7 +121,7 @@ internal object NotificationHelper {
                         .setStyle(
                             NotificationCompat.BigPictureStyle()
                                 .bigPicture(bitmap)
-                                .bigLargeIcon(null)
+                                .bigLargeIcon(null as Bitmap?)
                         )
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed decoding image url: ${e.message}", e)

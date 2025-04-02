@@ -1,15 +1,18 @@
 package com.cm.cmpush
 
+import android.Manifest
 import android.app.Application
 import android.app.NotificationChannel
-import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.LocaleList
 import android.util.Base64
 import android.util.Log
 import androidx.annotation.DrawableRes
+import androidx.core.app.ActivityCompat
 import com.cm.cmpush.helper.JSONHelper.formatJSONString
 import com.cm.cmpush.helper.JSONHelper.tryStringToJSONObject
 import com.cm.cmpush.helper.NetworkHelper
@@ -20,13 +23,10 @@ import com.cm.cmpush.helper.NotificationHelper.createNotificationChannel
 import com.cm.cmpush.helper.calculateHashCode
 import com.cm.cmpush.helper.getSharedPreferenceUtils
 import com.cm.cmpush.objects.*
-import com.cm.cmpush.objects.CMData
-import com.cm.cmpush.objects.PushAuthorization
 import com.cm.cmpush.worker.PushSyncWorkerHelper.disableSync
 import com.cm.cmpush.worker.PushSyncWorkerHelper.updateSyncSettings
 import org.json.JSONArray
 import org.json.JSONObject
-import java.lang.Exception
 import java.util.*
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -36,7 +36,9 @@ object CMPush {
     internal const val KEY_NOTIFICATION_ID = "notificationId"
     internal const val KEY_MESSAGE_ID = "messageId"
     internal const val KEY_SUGGESTION = "suggestion"
+    internal const val KEY_DEFAULT_ACTION = "defaultAction"
     const val OPEN_APP_PAGE = "openPage"
+    const val REPLY = "Reply"
 
     // User configuration
     internal lateinit var appIntent: Intent
@@ -51,7 +53,7 @@ object CMPush {
 
     /**
      * Initialize the CMPush SDK
-     * Should be called from your [Application] class so the [notificationIcon] and [notificationContentIntent] are accessible when the app is not fully started
+     * Should be called from your [Application] class so the [notificationIcon] and [notificationIntent] are accessible when the app is not fully started
      *
      * @param context                   the [Context] of the Application
      * @param applicationKey            the applicationKey received from CM
@@ -86,25 +88,22 @@ object CMPush {
         this.appIntent = notificationIntent
     }
 
-    @Deprecated("This function is deprecated", ReplaceWith("updateMSISDN(context, msisdn, sender, callback)"), level = DeprecationLevel.ERROR)
-    fun preRegister(context: Context, msisdn: String, sender: String, callback: (success: Boolean, error: CMPushError?) -> Unit) {
-        // Deprecated
-    }
-
-    @Deprecated("This function is deprecated", ReplaceWith("updateOTP(context, msisdn, otpCode, callback)"), level = DeprecationLevel.ERROR)
-    fun register(context: Context, pushToken: String, msisdn: String, otpCode: String, callback: (success: Boolean, error: CMPushError?) -> Unit) {
-        // Deprecated
-    }
-
     /**
      * Update the FCM Token together with other device info
      */
-    data class PendingUpdate(val pushToken: String, val callback: (success: Boolean, error: CMPushError?, installationId: String?) -> Unit)
+    data class PendingUpdate(
+        val pushToken: String,
+        val callback: (success: Boolean, error: CMPushError?, installationId: String?) -> Unit
+    )
 
     var isUpdating = false
     var pendingUpdate: PendingUpdate? = null
     val pendingUpdateLock = ReentrantLock()
-    fun updateToken(context: Context, pushToken: String, callback: (success: Boolean, error: CMPushError?, installationId: String?) -> Unit) {
+    fun updateToken(
+        context: Context,
+        pushToken: String,
+        callback: (success: Boolean, error: CMPushError?, installationId: String?) -> Unit
+    ) {
         pendingUpdateLock.withLock {
             if (!isUpdating) {
                 Log.d(TAG, "UpdateToken: No pending update, continue")
@@ -129,8 +128,12 @@ object CMPush {
         }
     }
 
-    private fun doUpdateToken(context: Context, pushToken: String, callback: (success: Boolean, error: CMPushError?, installationId: String?) -> Unit) {
-        Log.d(TAG, "UpdateToken: Perform update, token = " + pushToken)
+    private fun doUpdateToken(
+        context: Context,
+        pushToken: String,
+        callback: (success: Boolean, error: CMPushError?, installationId: String?) -> Unit
+    ) {
+        Log.d(TAG, "UpdateToken: Perform update, token = $pushToken")
 
         val sharedPreferenceUtils = context.getSharedPreferenceUtils()
 
@@ -141,7 +144,10 @@ object CMPush {
 
         // Register the device if there is no installationId yet.
         if (!sharedPreferenceUtils.hasInstallationId()) {
-            Log.d(TAG, "UpdateToken: Registering device because we don't have an installationId yet.")
+            Log.d(
+                TAG,
+                "UpdateToken: Registering device because we don't have an installationId yet."
+            )
             doNetworkRequest(
                 endpoint = "${createBaseUrl(context)}/register",
                 method = "POST",
@@ -163,23 +169,33 @@ object CMPush {
                         // Schedule-settings for push amplification
                         updateSyncSettings(context, response)
 
-                        Log.d(TAG, "UpdateToken: POST ok, installationId = " + installationId)
+                        Log.d(TAG, "UpdateToken: POST ok, installationId = $installationId")
 
                         callback(true, null, installationId)
                     } else {
-                        Log.e(TAG, "UpdateToken: POST failed. StatusCode = " + statusCode + " / response = " + response)
+                        Log.e(
+                            TAG,
+                            "UpdateToken: POST failed. StatusCode = $statusCode / response = $response"
+                        )
                         callback(false, CMPushError.ServerError(statusCode, result), null)
                     }
                     performPendingUpdate(context)
                 },
                 onError = { statusCode, result ->
-                    Log.e(TAG, "UpdateToken: POST failed. StatusCode = " + statusCode + " / result = " + result)
+                    Log.e(
+                        TAG,
+                        "UpdateToken: POST failed. StatusCode = $statusCode / result = $result"
+                    )
                     callback.invoke(false, CMPushError.ServerError(statusCode, result), null)
                     performPendingUpdate(context)
                 },
                 onException = { exception ->
                     Log.e(TAG, "UpdateToken: POST failed.", exception)
-                    callback.invoke(false, CMPushError.ServerError(null, exception.localizedMessage ?: ""), null)
+                    callback.invoke(
+                        false,
+                        CMPushError.ServerError(null, exception.localizedMessage ?: ""),
+                        null
+                    )
                     performPendingUpdate(context)
                 }
             )
@@ -215,22 +231,29 @@ object CMPush {
                         } ?: run {
                             disableSync(context)
                         }
-                        Log.d(TAG, "UpdateToken: PUT ok, installationId = " + installationId)
+                        Log.d(TAG, "UpdateToken: PUT ok, installationId = $installationId")
                         callback(true, null, installationId)
                     } else {
-                        Log.e(TAG, "UpdateToken: PUT failed. StatusCode = " + statusCode)
+                        Log.e(TAG, "UpdateToken: PUT failed. StatusCode = $statusCode")
                         callback(false, CMPushError.ServerError(statusCode, result), null)
                     }
                     performPendingUpdate(context)
                 },
                 onError = { statusCode, result ->
-                    Log.e(TAG, "UpdateToken: PUT failed. StatusCode = " + statusCode + " / result = " + result)
+                    Log.e(
+                        TAG,
+                        "UpdateToken: PUT failed. StatusCode = $statusCode / result = $result"
+                    )
                     callback.invoke(false, CMPushError.ServerError(statusCode, result), null)
                     performPendingUpdate(context)
                 },
                 onException = { exception ->
                     Log.e(TAG, "UpdateToken: PUT failed.", exception)
-                    callback.invoke(false, CMPushError.ServerError(null, exception.localizedMessage ?: ""), null)
+                    callback.invoke(
+                        false,
+                        CMPushError.ServerError(null, exception.localizedMessage ?: ""),
+                        null
+                    )
                     performPendingUpdate(context)
                 }
             )
@@ -240,7 +263,12 @@ object CMPush {
     /**
      * Sends an OTP code to the user via SMS
      */
-    fun updateMSISDN(context: Context, msisdn: String, callback: (success: Boolean, error: CMPushError?) -> Unit) {
+    @Deprecated("SMS verification (OTP) flow is not supported anymore")
+    fun updateMSISDN(
+        context: Context,
+        msisdn: String,
+        callback: (success: Boolean, error: CMPushError?) -> Unit
+    ) {
         val sharedPreferenceUtils = context.getSharedPreferenceUtils()
 
         if (!sharedPreferenceUtils.hasAccountId()) {
@@ -282,7 +310,10 @@ object CMPush {
                 callback.invoke(false, CMPushError.ServerError(statusCode, result))
             },
             onException = { exception ->
-                callback.invoke(false, CMPushError.ServerError(null, exception.localizedMessage ?: ""))
+                callback.invoke(
+                    false,
+                    CMPushError.ServerError(null, exception.localizedMessage ?: "")
+                )
             }
         )
     }
@@ -290,7 +321,13 @@ object CMPush {
     /**
      * Verify the OTP code the user received in a SMS
      */
-    fun updateOTP(context: Context, msisdn: String, otpCode: String, callback: (success: Boolean, error: CMPushError?) -> Unit) {
+    @Deprecated("SMS verification (OTP) flow is not supported anymore")
+    fun updateOTP(
+        context: Context,
+        msisdn: String,
+        otpCode: String,
+        callback: (success: Boolean, error: CMPushError?) -> Unit
+    ) {
         val sharedPreferenceUtils = context.getSharedPreferenceUtils()
 
         if (!sharedPreferenceUtils.hasAccountId()) {
@@ -337,14 +374,12 @@ object CMPush {
                 callback(false, CMPushError.ServerError(statusCode, result))
             },
             onException = { exception ->
-                callback.invoke(false, CMPushError.ServerError(null, exception.localizedMessage ?: ""))
+                callback.invoke(
+                    false,
+                    CMPushError.ServerError(null, exception.localizedMessage ?: "")
+                )
             }
         )
-    }
-
-    @Deprecated("This function is deprecated, notificationIcon & notificationContentIntent should be passed in the CMPush.initialize() function.", ReplaceWith("pushReceived(context, data, callback)"), level = DeprecationLevel.ERROR)
-    fun pushReceived(context: Context, data: Map<String, String>, showNotification: Boolean = true, @DrawableRes notificationIcon: Int, notificationContentIntent: PendingIntent, callback: (success: Boolean, error: CMPushError?) -> Unit) {
-        // Deprecated
     }
 
     /**
@@ -354,9 +389,15 @@ object CMPush {
      * @param data     the notification data received from Firebase
      * @param callback (optional) a callback to check if CM received the push confirmation
      */
-    fun pushReceived(context: Context, data: Map<String, String>, callback: ((success: Boolean, error: CMPushError?) -> Unit)? = null) {
+    fun pushReceived(
+        context: Context,
+        data: Map<String, String>,
+        callback: ((success: Boolean, error: CMPushError?) -> Unit)? = null
+    ) {
         //cm object can be BASE64 encoded Json-string or plain json object
-        val cmData = CMData.fromJSONObject(tryStringToJSONObject(data["cm"]) ?: tryStringToJSONObject(decodeBase64(data["cm"]))) ?: kotlin.run {
+        val cmData = CMData.fromJSONObject(
+            tryStringToJSONObject(data["cm"]) ?: tryStringToJSONObject(decodeBase64(data["cm"]))
+        ) ?: kotlin.run {
             Log.e(TAG, "Missing CM data in push message! Aborting..")
             return
         }
@@ -368,13 +409,13 @@ object CMPush {
         )
     }
 
-    private fun decodeBase64(input: String?) : String? {
-        if (input==null){
+    private fun decodeBase64(input: String?): String? {
+        if (input == null) {
             return null
         }
         try {
             return String(Base64.decode(input, Base64.DEFAULT), Charsets.UTF_8)
-        }catch (error: Exception){
+        } catch (error: Exception) {
             Log.e(TAG, "Invalid Base64")
             return null
         }
@@ -387,7 +428,11 @@ object CMPush {
      * - [pushReceived] (external function that receives incoming FCM messages)
      * - Push Amplification (future plans)
      */
-    internal fun showAndConfirmPushNotification(context: Context, cmData: CMData, callback: ((success: Boolean, error: CMPushError?) -> Unit)? = null) {
+    internal fun showAndConfirmPushNotification(
+        context: Context,
+        cmData: CMData,
+        callback: ((success: Boolean, error: CMPushError?) -> Unit)? = null
+    ) {
         // Notification icon is required
         val notificationIcon = this.notificationIcon ?: kotlin.run {
             Log.e(TAG, "Notification icon not initialized yet!")
@@ -402,24 +447,63 @@ object CMPush {
             // Check if message has been shown in the past (push messages can come from Firebase or PushSynchronizer
             if (setMessageShown(context, cmData.messageId)) {
                 sharedPreferenceUtils.getChannelId()?.let { channelId ->
-                    createNotification(
-                        context = context,
-                        channelId = channelId,
-                        cmData = cmData,
-                        notificationIcon = notificationIcon
-                    )
+                    // Create notification if permissions allow
+                    if (ActivityCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.POST_NOTIFICATIONS
+                        ) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        Log.d(
+                            TAG,
+                            "Not showing notification with messageId ${cmData.messageId} because the app does not have permission to post notifications!"
+                        )
+                        reportStatus(
+                            context,
+                            CMPushStatus(
+                                null,
+                                null,
+                                CMPushStatusReport(CMPushStatusType.Delivered, cmData.messageId)
+                            ),
+                            callback
+                        )
+                    } else {
+                        createNotification(
+                            context = context,
+                            channelId = channelId,
+                            cmData = cmData,
+                            notificationIcon = notificationIcon
+                        )
 
-                    reportStatus(context, CMPushStatus(null, null, CMPushStatusReport(CMPushStatusType.Delivered, cmData.messageId)), callback)
+                        reportStatus(
+                            context,
+                            CMPushStatus(
+                                null,
+                                null,
+                                CMPushStatusReport(CMPushStatusType.Delivered, cmData.messageId)
+                            ),
+                            callback
+                        )
+                    }
                 }
             } else {
-                Log.d(TAG, "Not showing notification with messageId ${cmData.messageId} because it was already shown in the past!")
-                callback?.invoke(false, CMPushError.ServerError(null, "Duplicate messageId: ${cmData.messageId}"))
+                Log.d(
+                    TAG,
+                    "Not showing notification with messageId ${cmData.messageId} because it was already shown in the past!"
+                )
+                callback?.invoke(
+                    false,
+                    CMPushError.ServerError(null, "Duplicate messageId: ${cmData.messageId}")
+                )
                 return
             }
         }
     }
 
-    internal fun reportStatus(context: Context, status: CMPushStatus, callback: ((success: Boolean, error: CMPushError?) -> Unit)?) {
+    internal fun reportStatus(
+        context: Context,
+        status: CMPushStatus,
+        callback: ((success: Boolean, error: CMPushError?) -> Unit)?
+    ) {
         val sharedPreferenceUtils = context.getSharedPreferenceUtils()
 
         // Confirm push message
@@ -436,7 +520,12 @@ object CMPush {
             method = "POST",
             body = status.toJSONObject().toString(),
             onSuccess = { statusCode, result ->
-                Log.d(TAG, "Successfully sent status for push message ($statusCode): \n${formatJSONString(result)}")
+                Log.d(
+                    TAG,
+                    "Successfully sent status for push message ($statusCode): \n${
+                        formatJSONString(result)
+                    }"
+                )
                 if (statusCode == 200) {
                     callback?.invoke(true, null)
                 } else {
@@ -444,11 +533,19 @@ object CMPush {
                 }
             },
             onError = { statusCode, result ->
-                Log.d(TAG, "Failed to send status for push message ($statusCode): \n${formatJSONString(result)}")
+                Log.d(
+                    TAG,
+                    "Failed to send status for push message ($statusCode): \n${
+                        formatJSONString(result)
+                    }"
+                )
                 callback?.invoke(false, CMPushError.ServerError(statusCode, result))
             },
             onException = { exception ->
-                callback?.invoke(false, CMPushError.ServerError(null, exception.localizedMessage ?: ""))
+                callback?.invoke(
+                    false,
+                    CMPushError.ServerError(null, exception.localizedMessage ?: "")
+                )
             }
         )
     }
@@ -471,6 +568,7 @@ object CMPush {
     /**
      * Check if a MSISDN is linked
      */
+    @Deprecated("SMS verification (OTP) flow is not supported anymore")
     fun hasRegisteredMSISDN(context: Context): Boolean {
         return context.getSharedPreferenceUtils().hasMSISDN()
     }
@@ -478,6 +576,7 @@ object CMPush {
     /**
      * Retrieve the linked MSISDN
      */
+    @Deprecated("SMS verification (OTP) flow is not supported anymore")
     fun getRegisteredMSISDN(context: Context): String? {
         return context.getSharedPreferenceUtils().getMSISDN()
     }
@@ -485,7 +584,11 @@ object CMPush {
     /**
      * Unlink MSISDN from the device registration
      */
-    fun unregisterMSISDN(context: Context, callback: (success: Boolean, error: CMPushError?) -> Unit) {
+    @Deprecated("SMS verification (OTP) flow is not supported anymore")
+    fun unregisterMSISDN(
+        context: Context,
+        callback: (success: Boolean, error: CMPushError?) -> Unit
+    ) {
         val sharedPreferenceUtils = context.getSharedPreferenceUtils()
 
         if (!sharedPreferenceUtils.hasMSISDN()) {
@@ -525,7 +628,10 @@ object CMPush {
                 callback.invoke(false, CMPushError.ServerError(statusCode, result))
             },
             onException = { exception ->
-                callback.invoke(false, CMPushError.ServerError(null, exception.localizedMessage ?: ""))
+                callback.invoke(
+                    false,
+                    CMPushError.ServerError(null, exception.localizedMessage ?: "")
+                )
             }
         )
     }
@@ -534,7 +640,11 @@ object CMPush {
      * Remove the entire device registration
      * Note that you should register the device again using [updateToken()]
      */
-    fun deleteRegistration(context: Context, callback: (success: Boolean, error: CMPushError?) -> Unit) {
+    @Deprecated("Was already deprecated in v2")
+    fun deleteRegistration(
+        context: Context,
+        callback: (success: Boolean, error: CMPushError?) -> Unit
+    ) {
         val sharedPreferenceUtils = context.getSharedPreferenceUtils()
 
         if (!sharedPreferenceUtils.hasInstallationId()) {
@@ -567,17 +677,41 @@ object CMPush {
                 callback.invoke(false, CMPushError.ServerError(statusCode, result))
             },
             onException = { exception ->
-                callback.invoke(false, CMPushError.ServerError(null, exception.localizedMessage ?: ""))
+                callback.invoke(
+                    false,
+                    CMPushError.ServerError(null, exception.localizedMessage ?: "")
+                )
             }
         )
+    }
+
+    private fun getPackageInfo(context: Context): PackageInfo? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            try {
+                context.packageManager.getPackageInfo(
+                    context.packageName,
+                    PackageManager.PackageInfoFlags.of(0)
+                )
+            } catch (e: PackageManager.NameNotFoundException) {
+                e.printStackTrace()
+                null
+            }
+        } else {
+            try {
+                context.packageManager.getPackageInfo(context.packageName, 0)
+            } catch (e: PackageManager.NameNotFoundException) {
+                e.printStackTrace()
+                null
+            }
+        }
     }
 
     private fun constructInformationObject(context: Context, pushToken: String): JSONObject {
         val version = Build.VERSION.SDK_INT
         val versionName = Build.VERSION.RELEASE
 
-        val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-        val appVersion = packageInfo.versionName
+        val packageInfo = getPackageInfo(context)
+        val appVersion = packageInfo?.versionName
 
         val languages = arrayListOf<Locale>()
         val locales = LocaleList.getDefault()
@@ -596,7 +730,15 @@ object CMPush {
             this.put("appVersion", appVersion)
             this.put("libId", BuildConfig.LIBRARY_PACKAGE_NAME)
             this.put("libVersion", BuildConfig.LIBRARY_VERSION_NAME)
-            this.put("pushAuthorization", PushAuthorization.Authorized.name)
+            if (ActivityCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                this.put("pushAuthorization", PushAuthorization.NotAuthorized.name)
+            } else {
+                this.put("pushAuthorization", PushAuthorization.Authorized.name)
+            }
             this.put("preferredLanguages", JSONArray(languages.map { it.toLanguageTag() }))
 
             if (sharedPreferenceUtils.hasMSISDN()) {
@@ -605,13 +747,24 @@ object CMPush {
         }
     }
 
-    private fun constructInformationObjectWithMSISDN(context: Context, pushToken: String, msisdn: String): JSONObject {
+    @Deprecated("SMS verification (OTP) flow is not supported anymore")
+    private fun constructInformationObjectWithMSISDN(
+        context: Context,
+        pushToken: String,
+        msisdn: String
+    ): JSONObject {
         return constructInformationObject(context, pushToken).apply {
             this.put("msisdn", msisdn)
         }
     }
 
-    private fun constructInformationObjectWithMSISDNAndOTP(context: Context, pushToken: String, msisdn: String, otpCode: String): JSONObject {
+    @Deprecated("SMS verification (OTP) flow is not supported anymore")
+    private fun constructInformationObjectWithMSISDNAndOTP(
+        context: Context,
+        pushToken: String,
+        msisdn: String,
+        otpCode: String
+    ): JSONObject {
         return constructInformationObjectWithMSISDN(context, pushToken, msisdn).apply {
             this.put("otpCode", otpCode)
         }
@@ -677,7 +830,9 @@ object CMPush {
     internal fun getApplicationName(context: Context): String {
         val applicationInfo = context.applicationInfo
         val stringId = applicationInfo.labelRes
-        return if (stringId == 0) applicationInfo.nonLocalizedLabel.toString() else context.getString(stringId)
+        return if (stringId == 0) applicationInfo.nonLocalizedLabel.toString() else context.getString(
+            stringId
+        )
     }
 
 }

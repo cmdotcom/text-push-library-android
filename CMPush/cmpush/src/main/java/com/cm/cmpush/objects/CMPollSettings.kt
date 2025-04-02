@@ -1,8 +1,6 @@
 package com.cm.cmpush.objects
 
 import org.json.JSONObject
-import java.lang.Exception
-import java.util.*
 
 internal data class CMPollSettings(
     val interval: Long,     //interval in seconds

@@ -2,6 +2,8 @@ package com.cm.cmpush.worker
 
 import android.content.Context
 import android.util.Log
+import androidx.work.Constraints
+import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.cm.cmpush.BuildConfig
@@ -9,7 +11,7 @@ import com.cm.cmpush.CMPush
 import com.cm.cmpush.helper.getSharedPreferenceUtils
 import com.cm.cmpush.objects.CMPollSettings
 import org.json.JSONObject
-import java.util.*
+import java.util.Date
 import java.util.concurrent.TimeUnit
 
 internal object PushSyncWorkerHelper {
@@ -51,6 +53,11 @@ internal object PushSyncWorkerHelper {
             //Allowed
             val work = OneTimeWorkRequestBuilder<PushSyncWorker>()
                 .setInitialDelay(settings.interval, TimeUnit.SECONDS)
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
+                )
                 .build()
             Log.d(CMPush.TAG, "Schedule next sync: $work")
             WorkManager.getInstance(context).enqueue(work)

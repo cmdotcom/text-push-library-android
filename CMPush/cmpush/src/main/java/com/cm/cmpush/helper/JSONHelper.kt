@@ -6,7 +6,8 @@ import org.json.JSONObject
 
 internal object JSONHelper {
     fun formatJSONString(json: String): String {
-        return tryStringToJSONArray(json)?.toString(4) ?: tryStringToJSONObject(json)?.toString(4) ?: json
+        return tryStringToJSONArray(json)?.toString(4) ?: tryStringToJSONObject(json)?.toString(4)
+        ?: json
     }
 
     fun tryStringToJSONArray(json: String): JSONArray? {

@@ -2,7 +2,6 @@ package com.cm.cmpush.helper
 
 import android.content.Context
 import android.util.Log
-import android.widget.Toast
 import com.cm.cmpush.CMPush
 import com.cm.cmpush.helper.NetworkHelper.createBaseUrl
 import com.cm.cmpush.objects.CMData
@@ -16,7 +15,10 @@ internal object PushSynchronizer {
             //Toast.makeText(context, "Fetching notifications..", Toast.LENGTH_LONG).show()
 
             if (!sharedPreferenceUtils.hasInstallationId()) {
-                Log.d(CMPush.TAG, "Can't confirm push message since app doesn't have an installationId yet.")
+                Log.d(
+                    CMPush.TAG,
+                    "Can't confirm push message since app doesn't have an installationId yet."
+                )
                 sharedPreferenceUtils.deletePollSettings()
                 return
             }
@@ -45,16 +47,24 @@ internal object PushSynchronizer {
                                     }
                                     PushSyncWorkerHelper.scheduleNextSync(context, pollSettings)
                                 } ?: run {
-                                    Log.d(CMPush.TAG, "Failed to retrieve pending notifications from CM")
+                                    Log.d(
+                                        CMPush.TAG,
+                                        "Failed to retrieve pending notifications from CM"
+                                    )
                                     PushSyncWorkerHelper.scheduleNextSync(context, pollSettings)
                                 }
                             } catch (ex: Exception) {
-                                Log.e(CMPush.TAG, "Failed to retrieve pending notifications from CM:", ex)
+                                Log.e(
+                                    CMPush.TAG,
+                                    "Failed to retrieve pending notifications from CM:",
+                                    ex
+                                )
                                 PushSyncWorkerHelper.scheduleNextSync(context, pollSettings)
                             }
                         }
+
                         else -> {
-                            Log.d(CMPush.TAG, "Polling status: " + statusCode)
+                            Log.d(CMPush.TAG, "Polling status: $statusCode")
                             PushSyncWorkerHelper.scheduleNextSync(context, pollSettings)
                         }
                     }
@@ -65,7 +75,10 @@ internal object PushSynchronizer {
                         Log.d(CMPush.TAG, "403 - No more polling")
                         PushSyncWorkerHelper.disableSync(context)
                     } else {
-                        Log.e(CMPush.TAG, "Failed to retrieve pending notifications from CM ($statusCode): $result")
+                        Log.e(
+                            CMPush.TAG,
+                            "Failed to retrieve pending notifications from CM ($statusCode): $result"
+                        )
                         PushSyncWorkerHelper.scheduleNextSync(context, pollSettings)
                     }
                 },

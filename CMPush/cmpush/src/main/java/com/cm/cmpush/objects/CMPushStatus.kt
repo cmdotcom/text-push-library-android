@@ -2,35 +2,32 @@ package com.cm.cmpush.objects
 
 import org.json.JSONObject
 import java.text.SimpleDateFormat
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.*
-import kotlin.collections.HashMap
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 val dateFormat by lazy {
-    val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
+    val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
     format.timeZone = TimeZone.getTimeZone("UTC")
     format
 }
 
 internal enum class CMPushEventType {
     MessageOpened,
-    URLOpened,
-    AppPageOpened,
-    MessageDismissed
+    MessageDismissed,
 }
 
 internal class CMPushEvent(
-    val type : CMPushEventType,
-    val reference : String,
-    val custom : HashMap<String, String>? = null) {
+    val type: CMPushEventType,
+    val reference: String,
+    val custom: HashMap<String, String>? = null,
+) {
 
     fun toJSONObject(): JSONObject = JSONObject().apply {
         put("type", type.name)
         put("reference", reference)
-        custom?.let{
-            val customObject = JSONObject().apply{
+        custom?.let {
+            val customObject = JSONObject().apply {
                 it.forEach {
                     put(it.key, it.value)
                 }
@@ -46,12 +43,13 @@ internal class CMPushMessage() {
 }
 
 internal enum class CMPushStatusType {
-    Delivered
+    Delivered,
 }
 
 internal class CMPushStatusReport(
-    val status : CMPushStatusType,
-    val messageId : String) {
+    val status: CMPushStatusType,
+    val messageId: String,
+) {
 
     fun toJSONObject(): JSONObject = JSONObject().apply {
         put("status", status.name)
@@ -61,9 +59,10 @@ internal class CMPushStatusReport(
 }
 
 internal class CMPushStatus(
-    val event : CMPushEvent? = null,
-    val message : CMPushMessage? = null,
-    val statusReport : CMPushStatusReport? = null) {
+    val event: CMPushEvent? = null,
+    val message: CMPushMessage? = null,
+    val statusReport: CMPushStatusReport? = null,
+) {
 
     fun toJSONObject(): JSONObject = JSONObject().apply {
         event?.apply {
