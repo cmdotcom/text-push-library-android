@@ -30,3 +30,5 @@
     *;
 }
 -keepparameternames
+
+-flattenpackagehierarchy 'com.cm.cmpush'
